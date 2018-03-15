@@ -261,7 +261,7 @@ class GoogleCar {
 
   async start() {
 
-    this.log('Initialize folder for the image collection.');
+    this.log('Initialize folder for the image collection...');
     if(this._settings.mode === 'images') {
       await this._initializeStructure();
     }
