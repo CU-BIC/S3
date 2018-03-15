@@ -13,4 +13,4 @@ class APILimitError extends Error {
   }
 }
 
-module.exports = APILimitError;
+module.exports.APILimitError = APILimitError;
