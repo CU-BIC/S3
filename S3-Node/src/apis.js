@@ -1,7 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const Coordinates = require('./coordinates.js');
-const APILimitError = require('./errors.js');
+const APILimitError = require('./errors.js').APILimitError;
 
 // CONSTANTS
 const BATCH_LIMIT = 100;
