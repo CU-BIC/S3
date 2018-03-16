@@ -23,7 +23,7 @@ class Coordinates {
     let clone = new Coordinates(this._lat, this._lng);
     clone._isInPolygon = this._isInPolygon;
     clone._isInWater = this._isInWater;
-    this._panorama = this._panorama && {...this._panorama};
+    clone._panorama = this._panorama && {...this._panorama};
     if (this._snappedCoordinates){
       clone._snappedCoordinates = new Coordinates(this._snappedCoordinates.getLat(), this._snappedCoordinates.getLng());
     }
@@ -35,7 +35,7 @@ class Coordinates {
       const panorama = await panoramaFetchFunction({ coordinates: this, radius });
       if(panorama && panorama.status !== 'ZERO_RESULTS') {
         this._panorama = panorama;
-      }  
+      }
     } catch (err) {
       throw err;
     }
@@ -62,7 +62,19 @@ class Coordinates {
   }
 
   asCsvLine() {
-    return `${this.asString()},${this._isInPolygon},${this._isInWater},${this.getSnappedCoordinates() ? this.getSnappedCoordinates().asString() : 'null,null'},NOTIMP`;
+    return `${this.asString()},${this._isInPolygon},${this._isInWater},${this.getSnappedCoordinates() ? this.getSnappedCoordinates().asString() : 'null,null'},${JSON.stringify(this._panorama)}`;
+  }
+
+  serialize() {
+    return {
+      lat: this.getLat(),
+      lng: this.getLng(),
+      inPolygon: this._isInPolygon,
+      inWater: this._isInWater,
+      latSnapped: this.getSnappedCoordinates() ? this.getSnappedCoordinates().getLat() : null,
+      lngSnapped: this.getSnappedCoordinates() ? this.getSnappedCoordinates().getLng() : null,
+      panorama: this._panorama,
+    };
   }
 
   setSnappedCoordinates(snappedCoordinates) {

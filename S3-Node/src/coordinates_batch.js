@@ -22,6 +22,10 @@ class CoordinatesBatch {
     this._coordinates.push(coordinates.clone());
   }
 
+  isEmpty() {
+    return this.getBatchSize() === 0;
+  }
+
   isFull() {
     return this._coordinates.length === 100; //BATCH LIMIT
   }

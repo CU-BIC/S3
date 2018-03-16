@@ -152,11 +152,13 @@ class GoogleCar {
     this.createVisualization();
     this.createSummary();
     this.createApiLog();
+    this.saveJsonLog();
   }
 
   createVisualization() {
     const coordinatesString = JSON.stringify({ coords: this.getProcessedBatch().getCoordinates()
                                                .filter(coord => coord._snappedCoordinates)
+                                               .filter(coord => coord._panorama)
                                                .map(coord => coord._snappedCoordinates.toGmaps()) });
     const regionPolygon = JSON.stringify({ coords: this._region.getGmapPolygon() });
     fs.writeFileSync(path.join(this.getSettings().destination, 'viz.html'), util.format(visualizationTemplate, coordinatesString, regionPolygon, this.getCurrentApiKey()));
@@ -164,6 +166,11 @@ class GoogleCar {
 
   createSummary() {
     fs.writeFileSync(path.resolve(this.getSettings().destination, 'log.txt'), this._logMessages.join('\n'));
+  }
+
+  saveJsonLog() {
+    const log = JSON.stringify(this.getProcessedBatch().getCoordinates().map(coord => coord.serialize()));
+    fs.writeFileSync(path.resolve(this.getSettings().destination, 'output.json'), log);
   }
 
   createApiLog() {
@@ -239,6 +246,7 @@ class GoogleCar {
       const startCoordinates = this.getCurrentCoordinates();
       try {
         await this.collectBatch();
+        if(this.getUnprocessedBatch().isEmpty()) continue;
         await this.getUnprocessedBatch().snapCoordinates({ apiKey: this.getCurrentApiKey() });
         await this.getUnprocessedBatch().fetchPanoramas({ panoramaFetchFunction: this.fetchPanoramaFunction,
                                                           radius: 50 }); // TODO change this ugly parameter

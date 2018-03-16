@@ -13,7 +13,6 @@ const getPixels = promisify(require('get-pixels'));
 const Coordinates = require('./coordinates');
 
 class Region {
-
   /**
    * Constructor for the Region class.
    * @param {object} osmObject The OpenStreetMap object which can be downloaded from nominatim.
@@ -99,7 +98,6 @@ class Region {
       throw new Error('The allowable corners are "NW", "NE", "SW" or "SE".');
     }
   }
-
 
   /**
    * Verifies whether a set of coordinates is contained within the Polygon corresponding to the region.
