@@ -29,118 +29,43 @@ from shapely.geometry.polygon import LinearRing
 from scipy import ndimage
 import cStringIO
 
-# Calling JS To get neighbouring panoramas
+# Hackily calling JS To get neighbouring panoramas
 import subprocess
 
 
-# TODO ::  Specify all command line parameters here to make this more user configurable
+# Default Parameters - To be user-specified and overwritten...
+API_KEY       = ''
+IMG_DIR       = './'
+STATS_FILE  = './stats.csv'
+IMAGE_WIDTH   = '640'
+IMAGE_HEIGHT  = '360'
+DEFAULT_PITCH = 0 
+RESOLUTION    = 1000
+NUM_STEPS     = 1    # Acquire a Single point at each location...
+VERBOSE       = True
 
-import argparse
-
-
-# Global Parameters
+# Useful Restart Functionality 
 DEFAULT_COORD = 999.0
 RESTART_LAT   = DEFAULT_COORD
-RESTART_LON   = DEFAULT_COORD 
-
-
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument('coords', type = argparse.FileType('r', encoding = 'UTF-8'), required=True)
-
-parser.add_argument("restart_lat", "-lat", type = float, help = "The Latitude to restart sampling", default = 999.0)
-parser.add_argument("restart_lon", "-lon", type = float, help = "The Longitude to restart sampling", defaulth = 999.0)
-parser.add_argument("-v", "--verbosity", action = "count", default = 0)
-args = parser.parse_args()
-
-
-
-
-# TODO :: Add Restart Functionality -  Purely to restart the search from these coords. Given that we maxed the Roads API...
-if 90 <= args.restart_lat <= 90:
-	RESTART_LAT = args.restart_lat
-if -180 <= args.restart_lon <= 180:
-	RESTART_LON = args.restart_lon
-
-# Summary Files :: -----------------
-NOW        = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-true_file  = './valid_coords_' + NOW + '.csv'
-false_file = './invalid_coords_' + NOW + '.csv'
-
-# TODO :: Track Coordinate Statistics!
-true_count = 0
-false_count = 0
-
-f = open(true_file, 'w')
-f.close()
-f = open(false_file, 'w')
-f.close()
-# -----------------------------------
-
-# TODO :: Have this load from a directory?
-ONTARIO_FILE = '../ontario/Ontario_Truncated.csv'
-CITY_EXCLUSIONS = [ '../exclusion_cities/Ottawa_Ontario_Canada.csv',		# 934,243
-                   '../exclusion_cities/Kingston_Ontario_Canada.csv',		# 123,798
-                   '../exclusion_cities/Guelph_Ontario_Canada.csv',		# 131,794
-                   '../exclusion_cities/London_Ontario_Canada.csv',		# 383,822
-                   '../exclusion_cities/Toronto_Ontario_Canada.csv',		# 2,731,579
-                   '../exclusion_cities/Mississauga_Ontario_Canada.csv',	# 721,599
-                   '../exclusion_cities/Brampton_Ontario_Canada.csv',		# 593,638
-                   '../exclusion_cities/Hamilton_Ontario_Canada.csv',		# 536,917
-                   #'../exclusion_cities/Cornwall_Ontario_Canada.csv',			  # Less than 100K
-                   #'../exclusion_cities/Brantford_Ontario_Canada.csv',			  # Less than 100K
-		   '../exclusion_cities/Windsor_Essex_Ontario_Canada.csv',	# 217,188
-                   '../exclusion_cities/Chatham-Kent_Ontario_Canada.csv',	# 101,647
-                   #'../exclusion_cities/Sarnia_Ontario_Canada.csv',			  # Less than 100K
-                   '../exclusion_cities/Kitchener_Ontario_Canada.csv',		# 233,222
-                   '../exclusion_cities/Waterloo_Ontario_Canada.csv',  		# 104,986	
-
-		   # TODO :: Get these Cities...
-		   '../exclusion_cities/Milton_Ontario_Canada.csv',		# 110,128
-		   '../exclusion_cities/Ajax_Ontario_Canada.csv',		# 119,677
-		   '../exclusion_cities/Whitby_Ontario_Canada.csv',		# 128,377
-		   #'../exclusion_cities/Cambridge_Ontario_Canada.csv',		# 129,920 # NO BOUNDING BOX...
-		   #'../exclusion_cities/SaintCatherines_Ontario_Canada.csv',	# 133,113 # NO BOUNDING BOX...
-		   '../exclusion_cities/Barrie_Simcoe_Ontario_Canada.csv',	# 141,434
-		   '../exclusion_cities/Oshawa_Ontario_Canada.csv',		# 159,458
-		   '../exclusion_cities/Sudbury_Ontario_Canada.csv',			# 161,531
-		   '../exclusion_cities/Burlington_Ontario_Canada.csv',		# 183,314
-		   '../exclusion_cities/Oakville_Ontario_Canada.csv',		# 193,832
-		   '../exclusion_cities/Richmond%20Hill_Ontario_Canada.csv',	# 195,022
-		   '../exclusion_cities/Vaughan_Ontario_Canada.csv',		# 306,233
-		   '../exclusion_cities/Markham_Ontario_Canada.csv' 		# 328,966	 
-		  ]
+RESTART_LON   = DEFAULT_COORD
 
 # Constants - Must be left unchanged!
-GOOGLE_BLUE = (163, 203, 255)
-BATCH_LIMIT = 100 # Google Roads API batch limit
-EARTH_RADIUS = 6371.001 # On average...
+GOOGLE_BLUE = (163, 203, 255) # Hopefully this wont change...
+BATCH_LIMIT = 100             # Google Roads API batch limit
+EARTH_RADIUS = 6371.001       # On average...
 
-# Parameters - To be user-specified.
-RESOLUTION = 2000 #5000 #10000
-NUM_STEPS  = 1    # Acquire a Single point at each location!
-VERBOSE = True
-
-
-# === IMAGE NAME ENCODING ===
+# Direction Encodings
 N, E, S, W = 0, 90, 180, 270
 headings   = [N, E, S, W]
 D, H, U    = -20, 0, 20
 pitches    = [D, H, U]
-# ===========================
+ 
 
-API_KEY      = '' 
-
-IMAGE_WIDTH  = '640'
-IMAGE_HEIGHT = '360'
-DEFAULT_PITCH = 0 # The horizon
-
-
-IMG_DIR = '/home/kevindick/Project_NRCan2018/google_images_2K/'
-
-base_dir = '/home/kevindick/Project_NRCan2018/ontario/'
-DATA_FILE    = base_dir + 'test_coords.txt'
+# TODO :: Add Restart Functionality -  Purely to restart the search from these coords. Given that we maxed the Roads API...
+if 90 <= args.restart_lat <= 90:
+        RESTART_LAT = args.restart_lat
+if -180 <= args.restart_lon <= 180:
+        RESTART_LON = args.restart_lon
 
 
 #------------------------------------------
@@ -462,6 +387,7 @@ def walk_algorithm(start_lat, start_lon, num_steps):
 	#	print str(i) + ',' + str(path[i][0]) + ',' + str(path[i][1]) + ',' + str(path[i][2])
 	return path
 
+# ----------------------------------------------------------------------------------------------------------------
 def process_data(stream_output):
 	""" process_data
 	Processes the streamed output of the adjacent_points function which calls the get_next_panorama.js function.
@@ -485,7 +411,7 @@ def process_data(stream_output):
 	headings = []
 	panos    = []
 	coords   = []
-	for elem in as_list: # I have a small suspicion there is a non-zero probability these terms end up in the pano id.......... switching to elifzzz...
+	for elem in as_list: # There is a non-zero probability these terms end up in the pano id...~
 		if   'key'     in elem: keys.append(int(elem.split(':')[1]))
 		elif 'heading' in elem: headings.append(float(elem.split(':')[1]))
 		elif 'pano'    in elem: panos.append(elem.split(':')[1])
@@ -494,7 +420,9 @@ def process_data(stream_output):
 
 	# Our arrays are now populated and the indecies match one another!
 	return keys, headings, panos, coords
+# --------------------------------------------------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------------------------------
 def adjacent_points(cur_lat, cur_lon):
 	""" adjacent_points
 	Get the adjacent panoramas, choose the one maximimizing distance from prior
@@ -510,6 +438,7 @@ def adjacent_points(cur_lat, cur_lon):
     	print output
 	# TODO :: Incorporate Error Checking here!
 	return output
+# ---------------------------------------------------------------------------------------------------
 
 # ---------------------------------------------------------------
 def google_check_image_existence(width, height, lat, lon, heading, pitch):
@@ -538,23 +467,16 @@ def request_and_save(width, height, lat, lon, heading, pitch, key, filename):
 	urllib.urlretrieve(query, filename)
 # ----------------------------------------------------------------------------
 
-############################
+# -------------------------------------------------------------------------
 def email_notification():
+	""" email_notification
+	Useful for alerting when an API_LIMIT is hit.
+	Set up with your own SMTP server!
+	"""
 	import smtplib, base64
 	server = smtplib.SMTP('', 587)
 	server.login("")
 	msg = "API LIMIT HIT!" 
 	server.sendmail("api_limiter@google.com", "your_email@here.com", msg)
-############################
+# --------------------------------------------------------------------------
 
-
-
-
-def main():
-	# Get Regional Bounds, and pass the exclusion cities
-	regional_polygon, city_exclusions = get_regional_polygon(ONTARIO_FILE, CITY_EXCLUSIONS)
-	search_area(regional_polygon, city_exclusions, RESOLUTION)
-
-if __name__ == "__main__":
-	main()
-	if VERBOSE: print 'Execution Complete!~'
