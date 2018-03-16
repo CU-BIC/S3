@@ -12,14 +12,30 @@ async function fetchSnappedCoordinates({ coordinates, apiKey }) {
         .map(pair => pair.asString())
         .join('|');
   const query = `https://roads.googleapis.com/v1/nearestRoads?points=${formattedCoordinates}&key=${apiKey}`;
-
   try {
     const response =  await axios.get(query);
-    const snappedPoints = [...new Set(response.data.snappedPoints)] // Some points appear to be duplicates...
-          .map(point => new Coordinates(point.location.latitude, point.location.longitude));
+
+    const snappedPointsDict = {};
+    [...new Set(response.data.snappedPoints)].forEach(snapped => {
+      snappedPointsDict[snapped.originalIndex - 1] = new Coordinates(snapped.location.latitude, snapped.location.longitude);
+    });
+
+    const snappedPoints = coordinates.map((unsnappedPoint, i) => {
+      if(snappedPointsDict[i]) {
+        unsnappedPoint.setSnappedCoordinates(snappedPointsDict[i]);
+        return unsnappedPoint;
+      } else {
+        unsnappedPoint.setSnappedCoordinates(null);
+        return unsnappedPoint;
+      }
+    });
     return snappedPoints;
   } catch (err) {
-    if (err.response.code === 429) {
+    console.log(err)
+    if (err.response.code === 400) {
+      console.log('bad request');
+      console.log(err);
+    } else if (err.response.code === 429) {
       throw new APILimitError('Roads', apiKey);
     } else {
       throw err;

@@ -131,15 +131,14 @@ class Region {
    * @param {string} apiKey The API key to make a call to Static Maps to check for water.
    * @returns {} 
    */
-  async isValidPosition(coordinates, apiKey) {
+  async isValidPosition({ coordinates, apiKey }) {
     // Check if the coordinates are within the polygon
 
     const coordinatesOutOfRegion = !this.polygonContains(coordinates);
 
-
     if(coordinatesOutOfRegion) return false;
 
-    const inWater = await this._isInWater(coordinates, apiKey);
+    const inWater = await this._isInWater({ coordinates, apiKey });
     return !inWater;
   }
 
@@ -151,7 +150,7 @@ class Region {
    * @param {string} apiKey API key used to make the call.
    * @returns {bool} Whether the coordinates are in water.
    */
-  async _isInWater(coordinates, apiKey) {
+  async _isInWater({ coordinates, apiKey }) {
     const waterQuery = `http://maps.googleapis.com/maps/api/staticmap?center=${coordinates.asString()}&zoom=20`
           + `&size=1x1&maptype=roadmap&sensor=false&key=${apiKey}`;
     const pixels = await getPixels(waterQuery);

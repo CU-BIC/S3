@@ -1,6 +1,7 @@
 
 
 class Coordinates {
+
   constructor(latOrArray, lng) {
     if(latOrArray.constructor === Array) {
       this._lat = latOrArray[1];
@@ -11,6 +12,32 @@ class Coordinates {
     } else {
       this._lat = latOrArray;
       this._lng = lng;
+    }
+    this._isInPolygon = null;
+    this._isInWater = null;
+    this._snappedCoordinates = null;
+    this._panorama = null;
+  }
+
+  clone() {
+    let clone = new Coordinates(this._lat, this._lng);
+    clone._isInPolygon = this._isInPolygon;
+    clone._isInWater = this._isInWater;
+    this._panorama = this._panorama && {...this._panorama};
+    if (this._snappedCoordinates){
+      clone._snappedCoordinates = new Coordinates(this._snappedCoordinates.getLat(), this._snappedCoordinates.getLng());
+    }
+    return clone;
+  }
+
+  async fetchPanorama({ panoramaFetchFunction, radius }) {
+    try {
+      const panorama = await panoramaFetchFunction({ coordinates: this, radius });
+      if(panorama && panorama.status !== 'ZERO_RESULTS') {
+        this._panorama = panorama;
+      }  
+    } catch (err) {
+      throw err;
     }
   }
 
@@ -34,6 +61,22 @@ class Coordinates {
     return `${this._lat},${this._lng}`;
   }
 
+  asCsvLine() {
+    return `${this.asString()},${this._isInPolygon},${this._isInWater},${this.getSnappedCoordinates() ? this.getSnappedCoordinates().asString() : 'null,null'},NOTIMP`;
+  }
+
+  setSnappedCoordinates(snappedCoordinates) {
+    this._snappedCoordinates = snappedCoordinates && snappedCoordinates.clone();
+  }
+
+  getSnappedCoordinates() {
+    return this._snappedCoordinates;
+  }
+
+  hasSnappedCoordinates() {
+    return this._snappedCoordinates !== null;
+  }
+
   toGmaps() {
     return { lat: this._lat, lng: this._lng };
   }
@@ -43,7 +86,26 @@ class Coordinates {
   }
 
   isInRegionPolygon(region) {
-    return region.containsCoordinates(this);
+      return region.polygonContains(this);
+  }
+
+  async isInWater({ region, apiKey }) {
+      return await region._isInWater({ coordinates: this, apiKey });
+  }
+
+  async isGoodSeed({ region, apiKey }) {
+    const inPolygon = this.isInRegionPolygon(region);
+    this._isInPolygon = inPolygon;
+
+    if(!inPolygon) return false;
+
+    const inWater = await !this.isInWater({ region, apiKey });
+    this._isInWater = inWater;
+    return !inWater;
+  }
+
+  setProperty(property, value) {
+    this[property] = value;
   }
 }
 
