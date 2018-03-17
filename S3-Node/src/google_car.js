@@ -269,14 +269,14 @@ class GoogleCar {
           this.emptyBatchAndDriveTo(startCoordinates);
           continue;
         }
+        this.log(`Car stopped unexpectedly after position ${startCoordinates.asString()} following an unknown error.`);
         this.stopDriving();
-        this.log(`Car stopped unnexpectedly after position ${startCoordinates.asString()} following an unknown error.`);
         throw err;
       }
     }
 
+    this.log('Successfully completed the search...');
     await this.stopDriving();
-    this.log('SUCCESSFULLY COMPLETED THE WHOLE TRIP!');
     return;
   }
 
