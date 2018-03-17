@@ -12,7 +12,7 @@ const region = JSON.parse(readFileSync(resolve(args.region)))[0];
 // Create a Google Car
 const car = new GoogleCar({
   region: region,
-  apiKeys: require(args.keys).apiKeys,
+  apiKeys: require(resolve(args.keys)).apiKeys,
   stopDistance: args.resolution,
   verbose: true,
   headings: 4, // 1, 2 or 4
