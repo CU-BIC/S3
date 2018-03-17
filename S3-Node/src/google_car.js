@@ -276,6 +276,7 @@ class GoogleCar {
     }
 
     await this.stopDriving();
+    this.log('SUCCESSFULLY COMPLETED THE WHOLE TRIP!');
     return;
   }
 

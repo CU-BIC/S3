@@ -7,7 +7,7 @@ const resolve = require('path').resolve;
 const args = parser.parseArgs();
 
 // Open the file with the OSM JSON corresponding to the region (for now, assume the first object is the city)
-const region = JSON.parse(readFileSync(args.region))[0];
+const region = JSON.parse(readFileSync(resolve(args.region)))[0];
 
 // Create a Google Car
 const car = new GoogleCar({
