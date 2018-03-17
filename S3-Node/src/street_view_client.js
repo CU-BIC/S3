@@ -15,7 +15,8 @@ const JSDOM = require('jsdom').JSDOM;
  * @returns {Object} GoogleStreetView client
  */
 function GSVClient({ apiKey }) {
-  const deasync = require('deasync');
+  return new Promise((resolve, reject) => {
+      //const deasync = require('deasync');
   const timeLaunch = new Date().getTime();
   const dom = new JSDOM(`
 <!DOCTYPE html>
@@ -52,10 +53,9 @@ function GSVClient({ apiKey }) {
   // Note: this is not particularly elegant, but since the client is instantiated
   // once for every API key, it is an acceptable solution.
   var clientReady = false;
-  window.getClient(function(client) { window.client = client; clientReady = true; })
-  deasync.loopWhile(function() { return !clientReady; });
-
-  return window.client;
+    window.getClient(function(client) { window.client = client; resolve(client); })
+  })
 }
+
 
 module.exports = GSVClient;

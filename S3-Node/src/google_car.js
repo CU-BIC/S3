@@ -66,8 +66,8 @@ class GoogleCar {
     return this._processedBatch;
   }
 
-  _setGSVClient() {
-    this._GSVClient = GSVClient({ apiKey: this.getCurrentApiKey() });
+  async _setGSVClient() {
+    this._GSVClient = await GSVClient({ apiKey: this.getCurrentApiKey() });
     this.fetchPanoramaFunction = ({ coordinates, radius }) => {
         return new Promise((resolve, reject) => {
           this._GSVClient.getPanorama({
@@ -133,7 +133,7 @@ class GoogleCar {
    * Changes the current API key in use by the Google Car.
    * @throws {} Error is thrown if only one API key is provided, as the key cannot be changed.
    */
-  changeApiKey() {
+  async changeApiKey() {
 
     this.log('Attempting to change the API key...');
 
@@ -146,7 +146,7 @@ class GoogleCar {
     }
 
     // Reset the GSVClient
-    this._setGSVClient();
+    await this._setGSVClient();
     this.log(`Changed the API key to ${this.getCurrentApiKey()}...`);
   }
 
@@ -265,7 +265,7 @@ class GoogleCar {
         this.log(`Completed (approx.): ${this.getProcessedBatch().getBatchSize()/this._region.getTotalNumPoints(this._stopDistance)}%...`);
       } catch (err) {
         if (err.code === 'API_LIMIT') {
-          this.changeApiKey();
+          await this.changeApiKey();
           this.emptyBatchAndDriveTo(startCoordinates);
           continue;
         }
