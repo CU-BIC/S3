@@ -1,7 +1,7 @@
 const GoogleCar = require('./src/google_car');
 const parser = require('./src/arg_parser.js');
-const apiKeys = require('./api_keys.json').apiKeys; // TODO the file should be passed in as an argument
 const readFileSync = require('fs').readFileSync;
+const resolve = require('path').resolve;
 
 // Create a little parser so that we can pass some argzzzz to dat small script.
 const args = parser.parseArgs();
@@ -12,7 +12,7 @@ const region = JSON.parse(readFileSync(args.region))[0];
 // Create a Google Car
 const car = new GoogleCar({
   region: region,
-  apiKeys: apiKeys,
+  apiKeys: require(args.keys).apiKeys,
   stopDistance: args.resolution,
   verbose: true,
   headings: 4, // 1, 2 or 4

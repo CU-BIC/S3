@@ -66,4 +66,15 @@ parser.addArgument(
   }
 );
 
+
+parser.addArgument(
+  ['-k', '--keys'],
+  {
+    help: 'The path to the api keys.',
+    defaultValue: false,
+    type: 'string',
+    required: true,
+  }
+);
+
 module.exports = parser;
