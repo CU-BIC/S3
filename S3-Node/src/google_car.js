@@ -263,9 +263,6 @@ class GoogleCar {
         // TODO download the images
         this.storeProcessedBatch();
         this.log(`Completed (approx.): ${this.getProcessedBatch().getBatchSize()/this._region.getTotalNumPoints(this._stopDistance)}%...`);
-        const error = new Error();
-        error.code = 'API_LIMIT';
-        throw error;
       } catch (err) {
         if (err.code === 'API_LIMIT') {
           this.changeApiKey();
