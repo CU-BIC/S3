@@ -5,7 +5,7 @@ class APILimitError extends Error {
     this.time = new Date();
     this.api = api;
     this.message = `Calls to the ${api} API are exhausted for the API key provided: ${apiKey} .`;
-    this.code = 'APILIMIT';
+    this.code = 'API_LIMIT';
 
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, APILimitError);

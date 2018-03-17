@@ -102,7 +102,11 @@ class Coordinates {
   }
 
   async isInWater({ region, apiKey }) {
+    try {
       return await region._isInWater({ coordinates: this, apiKey });
+    } catch (err) {
+      throw err;
+    }
   }
 
   async isGoodSeed({ region, apiKey }) {
@@ -111,9 +115,13 @@ class Coordinates {
 
     if(!inPolygon) return false;
 
-    const inWater = await !this.isInWater({ region, apiKey });
-    this._isInWater = inWater;
-    return !inWater;
+    try {
+      const inWater = await this.isInWater({ region, apiKey });
+      this._isInWater = inWater;
+      return !inWater;
+    } catch (err) {
+      throw err;
+    }
   }
 
   setProperty(property, value) {

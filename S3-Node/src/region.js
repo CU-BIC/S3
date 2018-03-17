@@ -11,6 +11,8 @@ const Vec2 = require('vec2'); // Replace with d3-polygon
 const promisify = require('util').promisify;
 const getPixels = promisify(require('get-pixels'));
 const Coordinates = require('./coordinates');
+const haversineDistance = require('./utils').haversineDistance;
+const checkForWater = require('./apis').checkForWater;
 
 class Region {
   /**
@@ -23,6 +25,16 @@ class Region {
     this._boundingBox = osmObject.boundingbox;
     this._region_name = osmObject.address;
     this._polygon = new Polygon(osmObject.geojson.coordinates[0]);
+    this.initPolygons();
+  }
+
+  initPolygons() {
+    const { type } = this._osmObject.geojson;
+    if (type.toLowerCase() === 'polygon') {
+      this._polygons = [new Polygon(this._osmObject.geojson.coordinates[0])];
+    } else if (type.toLowerCase() === 'multipolygon') {
+      this._polygons = this._osmObject.geojson.coordinates.map(polygon => new Polygon(polygon[0]));
+    }
   }
 
   /**
@@ -31,6 +43,26 @@ class Region {
    */
   getPolygon() {
     return this._polygon;
+  }
+
+  getPolygonArea() {
+    let area = 0;
+    this._polygons.forEach(polygon => area += polygon.area());
+    return area;
+  }
+
+  getBBoxHeight() {
+    const height = haversineDistance(this.getCornerCoordinates('NW'), this.getCornerCoordinates('SW'));
+    return height;
+  }
+
+  getBBoxWidth() {
+    const width = haversineDistance(this.getCornerCoordinates('NE'), this.getCornerCoordinates('NW'));
+    return width;
+  }
+
+  getTotalNumPoints(epsilon) {
+    return Math.floor(this.getBBoxWidth()/epsilon) * Math.floor(this.getBBoxHeight()/epsilon);
   }
 
   getGmapPolygon() {
@@ -105,7 +137,7 @@ class Region {
    * @returns {bool} Whether the coordinates are located within the polygon.
    */
   polygonContains(coordinates) {
-    const contained = this._polygon.containsPoint(Vec2(coordinates.asArray()));
+    const contained = this._polygons.some(polygon => polygon.containsPoint(Vec2(coordinates.asArray())));
     return contained;
   }
 
@@ -115,10 +147,11 @@ class Region {
    * @returns {bool} Whether the coordinates are located within the region's bounding box.
    */
   boundingBoxContains(coordinates) {
-    const lng = coordinates.getLng();
-    const lat = coordinates.getLat();
-    const latWithinBBox = lat >= this.getMinLat() && lat <= this.getMaxLat();
-    const lngWithinBBox = lng >= this.getMinLng() && lng <= this.getMaxLng();
+    const lng = parseFloat(coordinates.getLng());
+    const lat = parseFloat(coordinates.getLat());
+    const latWithinBBox = lat >= parseFloat(this.getMinLat()) && lat <= parseFloat(this.getMaxLat());
+    const lngWithinBBox = lng >= parseFloat(this.getMinLng()) && lng <= parseFloat(this.getMaxLng());
+
     return latWithinBBox && lngWithinBBox;
   }
 
@@ -149,10 +182,17 @@ class Region {
    * @returns {bool} Whether the coordinates are in water.
    */
   async _isInWater({ coordinates, apiKey }) {
+    /*
     const waterQuery = `http://maps.googleapis.com/maps/api/staticmap?center=${coordinates.asString()}&zoom=20`
           + `&size=1x1&maptype=roadmap&sensor=false&key=${apiKey}`;
     const pixels = await getPixels(waterQuery);
     return pixels.data[0] === 163 && pixels.data[1] === 203 && pixels.data[2] === 255;
+    */
+    try {
+      return await checkForWater({ coordinates, apiKey });
+    } catch (err) {
+      throw err;
+    }
   }
 
   /**

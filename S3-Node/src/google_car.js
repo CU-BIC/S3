@@ -15,9 +15,10 @@ const delta = require('./utils').delta;
 const bearings = require('./utils').bearings;
 const BATCH_LIMIT = require('./apis').BATCH_LIMIT;
 const GSVClient = require('./street_view_client');
-const promisify = require('bluebird').promisify;
+const promisify = require('util').promisify;
 const mkdir = promisify(require('fs').mkdir);
 const exists = promisify(require('fs').exists);
+const exec = promisify(require('child_process').exec);
 const fs = require('fs');
 const axios = require('axios');
 const util = require('util');
@@ -26,6 +27,12 @@ const api = require('./apis');
 const visualizationTemplate = require('./templates/map_visualization');
 const Coordinates = require('./coordinates');
 const CoordinatesBatch = require('./coordinates_batch');
+
+function sleep(ms){
+  return new Promise(resolve=>{
+    setTimeout(resolve,ms)
+  })
+}
 
 class GoogleCar {
 
@@ -49,7 +56,6 @@ class GoogleCar {
     this._verbose = verbose;
     this._regionFullyCovered = false;
     this._settings = settings;
-    this._setGSVClient();
   }
 
   getUnprocessedBatch() {
@@ -77,11 +83,13 @@ class GoogleCar {
 
   async _initializeStructure() {
     try {
-      if(!await exists(path.resolve(this.getSettings().destination))) {
-        await mkdir(path.resolve(this.getSettings().destination));
-        await mkdir(path.join(this.getSettings().destination, '/images'));
+      if(await exists(path.resolve(this.getSettings().destination))) {
+        await exec(`rm -rf ${path.resolve(this.getSettings().destination)}`);
       }
+      await mkdir(path.resolve(this.getSettings().destination));
+      await mkdir(path.join(this.getSettings().destination, '/images'));
     } catch (err) {
+      console.log(err)
       throw new Error('Error occured while attempting to create the directory structure... The car will stop.');
     }
   }
@@ -109,7 +117,9 @@ class GoogleCar {
    */
   driveTo(coordinates) {
     if (!this._region.boundingBoxContains(coordinates)) {
-      throw new Error('Trying to drive outside the region\'s bounding box...');
+      throw new Error(`Trying to drive outside the region\'s bounding box... The region is bounded by the coordinates: ${this._region.getCornerCoordinates('NW').toString()},`
+                      + `${this._region.getCornerCoordinates('NE').toString()}, ${this._region.getCornerCoordinates('SW').toString()}, ${this._region.getCornerCoordinates('SE').toString()}` +
+                     ` but you are attempting to drive to ${coordinates.toString()}`);
     }
 
     this._current_coordinates = coordinates;
@@ -237,7 +247,7 @@ class GoogleCar {
   }
 
   async start() {
-
+    await this._setGSVClient();
     this.log('Initialize folder for the image collection...');
     await this._initializeStructure();
 
@@ -252,12 +262,17 @@ class GoogleCar {
                                                           radius: 50 }); // TODO change this ugly parameter
         // TODO download the images
         this.storeProcessedBatch();
+        this.log(`Completed (approx.): ${this.getProcessedBatch().getBatchSize()/this._region.getTotalNumPoints(this._stopDistance)}%...`);
+        const error = new Error();
+        error.code = 'API_LIMIT';
+        throw error;
       } catch (err) {
-        if (err.code === 'APILIMIT') {
+        if (err.code === 'API_LIMIT') {
           this.changeApiKey();
           this.emptyBatchAndDriveTo(startCoordinates);
           continue;
         }
+        this.stopDriving();
         this.log(`Car stopped unnexpectedly after position ${startCoordinates.asString()} following an unknown error.`);
         throw err;
       }
@@ -273,13 +288,17 @@ class GoogleCar {
   async collectBatch() {
     while(!this.getUnprocessedBatch().isFull()) {
 
-      if(this.isDoneDriving()) break;
-      if(await this.getCurrentCoordinates().isGoodSeed({ region: this._region, apiKey: this.getCurrentApiKey() })) {
-        this.getUnprocessedBatch().add(this.getCurrentCoordinates().clone());
-      } else {
-        this.getProcessedBatch().add(this.getCurrentCoordinates().clone());
+      try {
+        if(this.isDoneDriving()) break;
+        if(await this.getCurrentCoordinates().isGoodSeed({ region: this._region, apiKey: this.getCurrentApiKey() })) {
+          this.getUnprocessedBatch().add(this.getCurrentCoordinates().clone());
+        } else {
+          this.getProcessedBatch().add(this.getCurrentCoordinates().clone());
+        }
+        this.drive();
+      } catch (err) {
+        throw err;
       }
-      this.drive();
     }
   }
 
