@@ -166,12 +166,18 @@ class GoogleCar {
   }
 
   createVisualization() {
-    const coordinatesString = JSON.stringify({ coords: this.getProcessedBatch().getCoordinates()
+      let coordinatesString = "{ coords: [] }";
+      let regionPolygon = "{ coords: [] }";
+      try{
+          coordinatesString = JSON.stringify({ coords: this.getProcessedBatch().getCoordinates()
                                                .filter(coord => coord._snappedCoordinates)
                                                .filter(coord => coord._panorama)
                                                .map(coord => coord._snappedCoordinates.toGmaps()) });
-    const regionPolygon = JSON.stringify({ coords: this._region.getGmapPolygon() });
-    fs.writeFileSync(path.join(this.getSettings().destination, 'viz.html'), util.format(visualizationTemplate, coordinatesString, regionPolygon, this.getCurrentApiKey()));
+          regionPolygon = JSON.stringify({ coords: this._region.getGmapPolygon() });
+        fs.writeFileSync(path.join(this.getSettings().destination, 'viz.html'), util.format(visualizationTemplate, coordinatesString, regionPolygon, this.getCurrentApiKey()));
+          } catch (err) {
+              this.log('Error while creating the visualization...');
+          }
   }
 
   createSummary() {
@@ -189,7 +195,7 @@ class GoogleCar {
           .getCoordinates()
           .map(coord => coord.asCsvLine())
           .join('\n');
-    fs.writeFileSync(path.resolve(this.getSettings().destination, 'output.csv'), fileContent);
+    fs.writeFileSync(path.resolve(this.getSettings().destination, 'output.tsv'), fileContent);
   }
 
   _doneDriving() {
