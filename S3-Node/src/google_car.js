@@ -156,13 +156,26 @@ class GoogleCar {
     if(this.isVerbose()) console.log(messageWithTime);
   }
 
+  createFile(fileName) {
+    fs.writeFileSync(path.join(this.getSettings().destination, fileName), '');
+  }
+
   async stopDriving() {
-    this.log('Finished driving...');
-    fs.writeFileSync(path.resolve(this._settings.destination, this._settings.filesPrefix + '_panoramas.json'), JSON.stringify({ panoramas: this._processedPanoramas }));
+    this.log('Successfully finished driving...');
     this.createVisualization();
     this.createSummary();
     this.createApiLog();
     this.saveJsonLog();
+    this.createFile('success');
+    process.exit(0);
+  }
+
+  async crash() {
+    this.log(`The car crashed at coordinates ${this.getCurrentCoordinates().toString()}.`);
+    this.createSummary();
+    this.createApiLog();
+    this.createFile('failure');
+    process.exit(1);
   }
 
   createVisualization() {
@@ -176,7 +189,7 @@ class GoogleCar {
           regionPolygon = JSON.stringify({ coords: this._region.getGmapPolygon() });
         fs.writeFileSync(path.join(this.getSettings().destination, 'viz.html'), util.format(visualizationTemplate, coordinatesString, regionPolygon, this.getCurrentApiKey()));
           } catch (err) {
-              this.log('Error while creating the visualization...');
+              this.log('The drive succeeded, but the visualization could not be created.');
           }
   }
 
@@ -276,16 +289,11 @@ class GoogleCar {
           this.emptyBatchAndDriveTo(startCoordinates);
           continue;
         }
-        this.log(`Car stopped unexpectedly after position ${startCoordinates.asString()} following an unknown error.`);
-        this.stopDriving();
-        throw err;
-        process.exit(1);
+        await this.crash();
       }
     }
 
-    this.log('Successfully completed the search...');
     await this.stopDriving();
-    process.exit(0);
     return;
   }
 

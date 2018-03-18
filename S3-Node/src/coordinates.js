@@ -62,7 +62,7 @@ class Coordinates {
   }
 
   asCsvLine() {
-    return `${this.asString()},${this._isInPolygon},${this._isInWater},${this.getSnappedCoordinates() ? this.getSnappedCoordinates().asString() : 'null,null'},${JSON.stringify(this._panorama)}`;
+    return `${this.asString()}\t${this._isInPolygon}\t${this._isInWater}\t${this.getSnappedCoordinates() ? this.getSnappedCoordinates().asString() : 'null,null'}\t${JSON.stringify(this._panorama)}`;
   }
 
   serialize() {
