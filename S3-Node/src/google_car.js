@@ -248,6 +248,7 @@ class GoogleCar {
 
   async start() {
     await this._setGSVClient();
+    this.log(`${this._region._osmObject['display_name']}`)
     this.log('Initialize folder for the image collection...');
     await this._initializeStructure();
 
@@ -272,11 +273,13 @@ class GoogleCar {
         this.log(`Car stopped unexpectedly after position ${startCoordinates.asString()} following an unknown error.`);
         this.stopDriving();
         throw err;
+        process.exit(1);
       }
     }
 
     this.log('Successfully completed the search...');
     await this.stopDriving();
+    process.exit(0);
     return;
   }
 
