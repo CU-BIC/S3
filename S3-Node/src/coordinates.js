@@ -31,8 +31,9 @@ class Coordinates {
   }
 
   async fetchPanorama({ panoramaFetchFunction, radius }) {
+    if(!this.getSnappedCoordinates()) return null;
     try {
-      const panorama = await panoramaFetchFunction({ coordinates: this, radius });
+      const panorama = await panoramaFetchFunction({ coordinates: this.getSnappedCoordinates(), radius });
       if(panorama && panorama.status !== 'ZERO_RESULTS') {
         this._panorama = panorama;
       }
@@ -61,7 +62,7 @@ class Coordinates {
     return `${this._lat},${this._lng}`;
   }
 
-  asCsvLine() {
+  asTsvLine() {
     return `${this.asString()}\t${this._isInPolygon}\t${this._isInWater}\t${this.getSnappedCoordinates() ? this.getSnappedCoordinates().asString() : 'null,null'}\t${JSON.stringify(this._panorama)}`;
   }
 

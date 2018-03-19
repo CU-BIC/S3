@@ -203,10 +203,10 @@ class GoogleCar {
   }
 
   createApiLog() {
-    let fileContent = 'original_latitude,original_longitude,within_region,in_water,snapped_latitude,snapped_longitude,streetview_available\n';
+    let fileContent = 'original_latitude\toriginal_longitude\twithin_region\tin_water\tsnapped_latitude\tsnapped_longitude\tstreetview_available\n';
     fileContent += this.getProcessedBatch()
           .getCoordinates()
-          .map(coord => coord.asCsvLine())
+          .map(coord => coord.asTsvLine())
           .join('\n');
     fs.writeFileSync(path.resolve(this.getSettings().destination, 'output.tsv'), fileContent);
   }
