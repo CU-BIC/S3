@@ -62,8 +62,12 @@ class Coordinates {
     return `${this._lat},${this._lng}`;
   }
 
+  asTsvString() {
+    return `${this._lat}\t${this._lng}`;
+  }
+
   asTsvLine() {
-    return `${this.asString()}\t${this._isInPolygon}\t${this._isInWater}\t${this.getSnappedCoordinates() ? this.getSnappedCoordinates().asString() : 'null,null'}\t${JSON.stringify(this._panorama)}`;
+    return `${this.asTsvString()}\t${this._isInPolygon}\t${this._isInWater}\t${this.getSnappedCoordinates() ? this.getSnappedCoordinates().asTsvString() : 'null\tnull'}\t${JSON.stringify(this._panorama)}`;
   }
 
   serialize() {
