@@ -18,13 +18,12 @@
 // References: 
 //	https://stackoverflow.com/questions/41958271/load-google-maps-api-in-jsdom
 //	https://stackoverflow.com/questions/47084618/next-panorama-id-in-street-view
-//
 
 
 var LATITUDE  = process.argv[2];
 var LONGITUDE = process.argv[3];
-var SEARCH_RADIUS = 50; // TODO :: Ibid...
-var KILL_TIMEOUT = 3000; // TODO :: Temorarily use this to kill JSDOM...
+var SEARCH_RADIUS = 50; 
+var KILL_TIMEOUT = 3000; // TODO :: Used to kill the JSDOM...
 
 
 function get_next_panoramae(lat, lon, api_key) {
@@ -102,6 +101,6 @@ function get_next_panoramae(lat, lon, api_key) {
 
 get_next_panoramae(LATITUDE, LONGITUDE, API_KEY);
 // Kill the process after 3 seconds...
-// TODO :: Figure out why the JSDOM Hangs... This inexplicable killing is inelegant.
+// TODO :: Figure out why the JSDOM Hangs... Killing the process following the timeout is inelegant.
 // Must find a better way to terminate the JSDOM in a timely manner after retrieving lat,lon pairs!
 setTimeout(function(){ process.exit(); }, KILL_TIMEOUT);

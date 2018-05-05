@@ -13,21 +13,19 @@
 ####################################
 import S3
 import os, sys
-import datetime
+from datetime import datetime as dt
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('coords', type = argparse.FileType('r', encoding = 'UTF-8'), required=True)
-parser.add_argument("restart_lat", "-lat", type = float, help = "The Latitude to restart sampling", default = 999.0)
-parser.add_argument("restart_lon", "-lon", type = float, help = "The Longitude to restart sampling", defaulth = 999.0)
-parser.add_argument("-v", "--verbosity", action = "count", default = 0)
+parser.add_argument('-a', '--api_key', help = 'Your Google API key.', required = True)
+parser.add_argument('-c', '--coords', help = 'The coordinates bounding the search region.', required = True)
+parser.add_argument('-d', '--epsilon', help = 'The distance between search points in meters; epsilon in the paper (eg: 1000 for 1km.', required = True)
+parser.add_argument('-lat', '--restart_lat', help = 'The latitude from where to restart sampling.', type = float, default = 999.0)
+parser.add_argument('-lon', '--restart_lon', help = 'The longitude from where to restart sampling.', type = float, default = 999.0)
+parser.add_argument('-log', '--log_file', help = 'The log file.', type = float, default = dt.now().strftime("%Y-%m-%d_%H-%M-%S") + '.log')
+parser.add_argument('-v', '--verbose', help = 'Increase output verbosity.', action = 'store_true')
+parser.add_argument('-e', '--exclusions', nargs='*', help = 'Path to files containing excluding regions.', default = [])
 args = parser.parse_args()
-
-
-# Summary Files :: -----------------
-NOW        = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-EXCLUSIONS = [] # List of filenames containing regions to exclude...
 
 # ---------------------------------
 def search_area(regional_polygon, city_exclusions, skip_distance):
@@ -48,28 +46,23 @@ def search_area(regional_polygon, city_exclusions, skip_distance):
 	cur_lon = bounding_box[1] # W		 |.......|
 	end_lat = bounding_box[0] # S		 |.......|	
 	end_lon = bounding_box[3] # E		 |.......| <-- End
-	num_grid = 0 # Used to count the number of points
+	
+	# Pick up from the restart coords is necessary...
+	if args.restart_lat < 999.0: cur_lat = args.restart_lat
+	if args.restart_lon < 999.0: cur_lon = args.restart_lon
 
-	# Useful when picking up where left off...
-	# ===================
-	#cur_lat = RESTART_LAT
-	#cur_lon = RESTART_LON
-	# ===================
-
-	if VERBOSE:
-		print 'Current Coords: (lat,lon) = (' + str(cur_lat) + ',' + str(cur_lon) + ')'
-		print 'End Coords: (lat,lon) = (' + str(end_lat) + ',' + str(end_lon) + ')'
+	if args.verbose: print 'Resetting coordinates to (lat,lon): (' + str(cur_lat) + ',' + str(cur_lon) + ')'
 	
 	batch_list = [] # For snapping to roads...	
 	while cur_lat > end_lat:# Reset to Western Edge and teleport down
-		cur_lat, cur_lon = teleport(cur_lat, bounding_box[1], S, skip_distance)
-		if VERBOSE: '--- Shift Latitude Down ---\nCurrent Coords: (lat,lon) = (' + str(cur_lat) + ',' + str(cur_lon) + ')'
+		cur_lat, cur_lon = teleport(cur_lat, bounding_box[1], S3.SOUTH, skip_distance)
+		
+		if args.verbose: '--- Shift Latitude Down ---\nCurrent Coords: (lat,lon) = (' + str(cur_lat) + ',' + str(cur_lon) + ')'
 		while cur_lon < end_lon:
-			num_grid += 1
-
+			
 			# Teleport to the next point
-			cur_lat, cur_lon = teleport(cur_lat, cur_lon, E, skip_distance)			
-			if VERBOSE: print str(num_grid) + ' :\t(' + str(cur_lat) + ', ' + str(cur_lon) + ')'
+			cur_lat, cur_lon = teleport(cur_lat, cur_lon, S3.EAST, skip_distance)			
+			if args.verbose: print str(num_grid) + ' :\t(' + str(cur_lat) + ', ' + str(cur_lon) + ')'
 			
 			# Check if Point in the polygon and outside of cities. Also check if coords are over water or not.
 			regional_valid = regional_validity(Point(cur_lat, cur_lon), regional_polygon, city_exclusions)
@@ -82,7 +75,7 @@ def search_area(regional_polygon, city_exclusions, skip_distance):
 				batch_list.append((cur_lat, cur_lon))
 
 			# Keep filling the batch process until 100 coordinates...
-			if len(batch_list) != BATCH_LIMIT: continue
+			if len(batch_list) != S3.BATCH_LIMIT: continue
 			
 			# For the 100 coords, get the nearest roads, perform walk algo, & save images...
 			process_batch_coordinates(google_snap_to_nearest_road_batch(batch_list))
@@ -95,10 +88,11 @@ def search_area(regional_polygon, city_exclusions, skip_distance):
 	print 'FALSE_COUNT = ', false_count	
 
 def main():
+	S3.API_KEY = args.api_keys
 	# Get Regional Bounds, and pass the exclusion cities
-	regional_polygon, city_exclusions = get_regional_polygon(ONTARIO_FILE, CITY_EXCLUSIONS)
-	search_area(regional_polygon, city_exclusions, RESOLUTION)
+	search_region, exclude = get_regional_polygon(args.coords, args.exclusions)
+	search_area(search_region, exclude, args.epsilon)
 
 if __name__ == "__main__":
 	main()
-	if VERBOSE: print 'Execution Complete!~'
+	if args.verbose: print 'Execution Complete!~'

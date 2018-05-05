@@ -12,24 +12,15 @@
 #  various images...               #
 ####################################
 import os, sys
-import datetime
 import math
-
-# Requests from Google APIs
 import urllib, urllib2
 import json
 import requests
-
-# Logic for Keeping/Rejecting a Coordinate
 from shapely.geometry import Point
 from shapely.geometry import Polygon
 from shapely.geometry.polygon import LinearRing
-
-# Google Static Image Analysis
 from scipy import ndimage
 import cStringIO
-
-# Hackily calling JS To get neighbouring panoramas
 import subprocess
 
 
@@ -42,38 +33,19 @@ IMAGE_HEIGHT  = '360'
 DEFAULT_PITCH = 0 
 RESOLUTION    = 1000
 NUM_STEPS     = 1    # Acquire a Single point at each location...
-VERBOSE       = True
 
-# Useful Restart Functionality 
-DEFAULT_COORD = 999.0
-RESTART_LAT   = DEFAULT_COORD
-RESTART_LON   = DEFAULT_COORD
 
 # Constants - Must be left unchanged!
 GOOGLE_BLUE = (163, 203, 255) # Hopefully this wont change...
 BATCH_LIMIT = 100             # Google Roads API batch limit
 EARTH_RADIUS = 6371.001       # On average...
-
-# Direction Encodings
-N, E, S, W = 0, 90, 180, 270
-headings   = [N, E, S, W]
-D, H, U    = -20, 0, 20
-pitches    = [D, H, U]
+NORTH, EAST, SOUTH, WEST = 0, 90, 180, 270
  
 
-# TODO :: Add Restart Functionality -  Purely to restart the search from these coords. Given that we maxed the Roads API...
-if 90 <= args.restart_lat <= 90:
-        RESTART_LAT = args.restart_lat
-if -180 <= args.restart_lon <= 180:
-        RESTART_LON = args.restart_lon
-
-
-#------------------------------------------
 def write_to_file(target_file, data):
         f_write = open(target_file, 'a')
         f_write.write(data + '\n')
         f_write.close()
-#-------------------------------------------
 
 def load_coordinates(filename):
 	""" load_coordinates
@@ -106,7 +78,6 @@ def get_regional_polygon(region_file, cities_files):
 
 	return region_poly, city_exclusions
 
-# ----------------------------------------------------
 def teleport(start_lat, start_lon, bearing, distance):
 	"""
     	Input: Start lat, lon, the bearing (usually Cardinal, in degrees), and distance in m.
@@ -127,7 +98,6 @@ def teleport(start_lat, start_lon, bearing, distance):
 	end_lon = math.degrees(end_lon)
 
 	return end_lat, end_lon
-# -------------------------------------------------------
 
 def regional_validity(query_point, regional_inclusion, regional_exclusion):
 	""" regional_validity
@@ -211,72 +181,6 @@ def process_batch_coordinates(roads_list):
                 path = walk_algorithm(road_lat, road_lon, NUM_STEPS)
                 get_bidirectional_path_images(path, true_count)
 
-# ---------------------------------
-def search_area(regional_polygon, city_exclusions, skip_distance):
-	"""
-	Iterates over a regional polygon bounding box area by applying a consistently spaced grid of points.
-	Iterates from W-->E and N-->S starting at the NW coordinate and ending at the SE corner.
-	The bounding_box defines the N,S latitudes and E,W longitudes bounding the search region.
-	The skip_distance defines the spatial separation (in meters) between the grid points.
-	Calls the validation methods passing on each lat, lon pair.
-	Verifies that points do not co-occur in any of the city-exclusions.
-	:param: BoundingBox is an ordered tuple with entries [S, W, N, E] of a regional bounding box.
-	:param: city_exclusions is a list of Polygons to check against for inclusion points.
-	:param: skip_distance is the spatial 'jump' distance between points in meters.
-	Ex: search_area([47.0, -72.0, 42.0, -75.0], 1000)
-	"""
-	bounding_box = regional_polygon.bounds
-	cur_lat = bounding_box[2] # N   Start -->|.......|
-	cur_lon = bounding_box[1] # W		 |.......|
-	end_lat = bounding_box[0] # S		 |.......|	
-	end_lon = bounding_box[3] # E		 |.......| <-- End
-	num_grid = 0 # Used to count the number of points
-
-	# Useful when picking up where left off...
-	# ===================
-	#cur_lat = RESTART_LAT
-	#cur_lon = RESTART_LON
-	# ===================
-
-	if VERBOSE:
-		print 'Current Coords: (lat,lon) = (' + str(cur_lat) + ',' + str(cur_lon) + ')'
-		print 'End Coords: (lat,lon) = (' + str(end_lat) + ',' + str(end_lon) + ')'
-	
-	batch_list = [] # For snapping to roads...	
-	while cur_lat > end_lat:# Reset to Western Edge and teleport down
-		cur_lat, cur_lon = teleport(cur_lat, bounding_box[1], S, skip_distance)
-		if VERBOSE: '--- Shift Latitude Down ---\nCurrent Coords: (lat,lon) = (' + str(cur_lat) + ',' + str(cur_lon) + ')'
-		while cur_lon < end_lon:
-			num_grid += 1
-
-			# Teleport to the next point
-			cur_lat, cur_lon = teleport(cur_lat, cur_lon, E, skip_distance)			
-			if VERBOSE: print str(num_grid) + ' :\t(' + str(cur_lat) + ', ' + str(cur_lon) + ')'
-			
-			# Check if Point in the polygon and outside of cities. Also check if coords are over water or not.
-			regional_valid = regional_validity(Point(cur_lat, cur_lon), regional_polygon, city_exclusions)
-			land_valid = land_validity(cur_lat, cur_lon)
-
-			# TODO :: Save these validity data for regional summary statistics.
-
-			# Add to the batch for downstream processing!
-			if regional_valid and land_valid:
-				batch_list.append((cur_lat, cur_lon))
-
-			# Keep filling the batch process until 100 coordinates...
-			if len(batch_list) != BATCH_LIMIT: continue
-			
-			# For the 100 coords, get the nearest roads, perform walk algo, & save images...
-			process_batch_coordinates(google_snap_to_nearest_road_batch(batch_list))
-			batch_list = [] # Reset for the next round...
-
-	# End of the loops. If any remaining coords in the batch, process them:
-	if len(batch_list) != 0: process_batch_coordinates(google_snap_to_nearest_road_batch(batch_list))
-	
-	print 'TRUE COUNT = ', true_count
-	print 'FALSE_COUNT = ', false_count	
-# ---------------------------------------
-
 def google_check_over_water(lat, lon):
 	query = 'http://maps.googleapis.com/maps/api/staticmap?center=' + \
 		 str(lat) + ',' + str(lon) + \
@@ -293,7 +197,6 @@ def google_check_over_water(lat, lon):
 	image = ndimage.imread(f, mode='RGB')[0][0]
         return image[0], image[1], image[2]
 
-# ---------------------------------------
 # Legacy. Kept around for one-off API calls...
 def google_snap_to_nearest_road(lat, lon):
 	"""google_snap_to_nearest_road
@@ -316,8 +219,6 @@ def google_snap_to_nearest_road(lat, lon):
 		print 'GOOGLE ROADS API LIMIT\nRestart the search at the following coordiantes: (' + str(lat) + ', ' + str(lon) + ')'
 		sys.exit(0)
 	
-# ---------------------------------------
-
 def google_snap_to_nearest_road_batch(latlon_list):
         """ google_snap_to_nearrest_road_batch
         Optimizes the calls to the Google Roads API by submitting batches of 100 lat,lon pairs at a time.
@@ -368,9 +269,8 @@ def walk_algorithm(start_lat, start_lon, num_steps):
 			if (prior_lat, prior_lon) in coords: coords.remove((prior_lat, prior_lon))
 		
 		# Theoretically there will always be a remaining coordinate on a mapped bi-directional road...
-		# Otherwise we hit a deadend or more specifically, the end of the mapping.
-		if not coords: # The list is empty so simply return the existing path
-			return path
+		# Otherwise we hit a dead-end or more specifically, the end of the mapping.
+		if not coords: return path # The list is empty so simply return the existing path
 
 		# Select the coordinate pair that maximizes the distance from the prior point
 		dists = [abs(coordinate_distance(cur_lat, cur_lon, x[0], x[1])) for x in coords]
@@ -380,14 +280,11 @@ def walk_algorithm(start_lat, start_lon, num_steps):
 		cur_lat, cur_lon = coords[idx]
 		heading = headings[idx]		
 		path.append((cur_lat, cur_lon, heading))
-	print path
-	
-	# Useful for Testing... TODO :: Remove this later...
-	#for i in range(len(path)):
-	#	print str(i) + ',' + str(path[i][0]) + ',' + str(path[i][1]) + ',' + str(path[i][2])
+		
+	# Uncomment to check out path...
+	#for i in range(len(path)): print str(i) + ',' + str(path[i][0]) + ',' + str(path[i][1]) + ',' + str(path[i][2])
 	return path
 
-# ----------------------------------------------------------------------------------------------------------------
 def process_data(stream_output):
 	""" process_data
 	Processes the streamed output of the adjacent_points function which calls the get_next_panorama.js function.
@@ -402,7 +299,7 @@ def process_data(stream_output):
 
 	The key and latlon pair orderings are conserved.
 
-	TODO :: Rewrite the output to JSON and simply parse it here....friggggginnn....
+	TODO :: Rewrite the output to JSON and simply parse it here...
 	"""
 	# TODO :: Intelligently utilize and track the pano ids and key ids
 	# Naively just grabbing the latlon pairs here and their corresponding headings...
@@ -420,9 +317,7 @@ def process_data(stream_output):
 
 	# Our arrays are now populated and the indecies match one another!
 	return keys, headings, panos, coords
-# --------------------------------------------------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------------------------------
 def adjacent_points(cur_lat, cur_lon):
 	""" adjacent_points
 	Get the adjacent panoramas, choose the one maximimizing distance from prior
@@ -435,12 +330,8 @@ def adjacent_points(cur_lat, cur_lon):
 	args = ['node', './javascript_panoramas/get_next_panorama.js', str(cur_lat), str(cur_lon)]
         process = subprocess.Popen(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         output = process.communicate()[0]
-    	print output
-	# TODO :: Incorporate Error Checking here!
 	return output
-# ---------------------------------------------------------------------------------------------------
 
-# ---------------------------------------------------------------
 def google_check_image_existence(width, height, lat, lon, heading, pitch):
 	"""check_image_existence
 	Submits a Google API query to verify whether an image exists at the
@@ -455,9 +346,7 @@ def google_check_image_existence(width, height, lat, lon, heading, pitch):
 		 '&key=' + API_KEY
 	response = json.loads(requests.get(query).text)
 	print 'JSON Status Field: ' + response['status']
-# ---------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
 def request_and_save(width, height, lat, lon, heading, pitch, key, filename):
 	query = 'https://maps.googleapis.com/maps/api/streetview?size=' + \
 		str(width) + 'x' + str(height) + \
@@ -465,9 +354,7 @@ def request_and_save(width, height, lat, lon, heading, pitch, key, filename):
 	        '&heading=' + str(heading) + '&pitch=' + str(pitch) + \
 	        '&key=' + str(key)
 	urllib.urlretrieve(query, filename)
-# ----------------------------------------------------------------------------
 
-# -------------------------------------------------------------------------
 def email_notification():
 	""" email_notification
 	Useful for alerting when an API_LIMIT is hit.
@@ -478,5 +365,3 @@ def email_notification():
 	server.login("")
 	msg = "API LIMIT HIT!" 
 	server.sendmail("api_limiter@google.com", "your_email@here.com", msg)
-# --------------------------------------------------------------------------
-
