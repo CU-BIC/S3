@@ -27,13 +27,11 @@ import subprocess
 # Default Parameters - To be user-specified and overwritten...
 API_KEY       = ''
 IMG_DIR       = './'
-STATS_FILE  = './stats.csv'
 IMAGE_WIDTH   = '640'
 IMAGE_HEIGHT  = '360'
 DEFAULT_PITCH = 0 
-RESOLUTION    = 1000
 NUM_STEPS     = 1    # Acquire a Single point at each location...
-
+VERBOSE       = False
 
 # Constants - Must be left unchanged!
 GOOGLE_BLUE = (163, 203, 255) # Hopefully this wont change...
@@ -99,15 +97,15 @@ def teleport(start_lat, start_lon, bearing, distance):
 
 	return end_lat, end_lon
 
-def regional_validity(query_point, regional_inclusion, regional_exclusion):
+def regional_validity(query_point, regional_inclusion, regional_exclusions):
 	""" regional_validity
 	Returns whether a coordinate point is inside a polygon and outside of excluded regions.
 	Input: A Point object, a Polygon Object of the inclusion region; a list of Polygon Objects of excluded regions.
 	Output: True if the query point is both inside the regional polygon and outside all exlusions; False otherwise.
 	"""
-	if query_point.within(regional_polygon):
+	if query_point.within(regional_inclusion):
         	# Check if the point co-occurs with city areas...
-                for city in city_exclusions:
+                for city in regional_exclusions:
                 	if query_point.within(city):
                         	return False
 		return True
@@ -149,18 +147,17 @@ def get_bidirectional_path_images(coord_path, path_ref):
         Input: List of lat,lon,heading tuples corresponding to a walked series of adjacent panoramas; path reference id for this unique series.
         Output: None. Saves all the files to the IMG_DIR
         """
-        for step in range(1, len(coord_path)): # Ignore the initial point with non-meaningful heading...
+        for step in range(0, len(coord_path)): # Ignore the initial point with non-meaningful heading...'
                 step_lat      = str(coord_path[step][0])
                 step_lon      = str(coord_path[step][1])
                 step_hdg_f    = str(coord_path[step][2])
 		step_hdg_r    = str(float(step_hdg_f) + 180)
-                write_to_file(true_file, step_lat + ',' + step_lon + ',truepnt_' + str(true_count) + '_step_' + str(step))
 
                 # Create Unique Filename
                 filename_f = IMG_DIR + 'img_ref_' + str(path_ref) + '_stp_' + str(step) + '_lat_' + step_lat + '_lon_' + step_lon + '_hdg_' + str(step_hdg_f) + '.jpg'
 		filename_r = IMG_DIR + 'img_ref_' + str(path_ref) + '_stp_' + str(step) + '_lat_' + step_lat + '_lon_' + step_lon + '_hdg_' + str(step_hdg_r) + '.jpg'
-
-                # Here we now grab the image and build up our automatic dataset!
+                
+		# Here we now grab the image and build up our automatic dataset!
                 if VERBOSE: print 'Saving Images : ' + filename_f + '\t' + filename_r
                 request_and_save(IMAGE_WIDTH, IMAGE_HEIGHT, step_lat, step_lon, step_hdg_f, DEFAULT_PITCH, API_KEY, filename_f)
 		request_and_save(IMAGE_WIDTH, IMAGE_HEIGHT, step_lat, step_lon, step_hdg_r, DEFAULT_PITCH, API_KEY, filename_r)
@@ -179,7 +176,7 @@ def process_batch_coordinates(roads_list):
 		# Unpack, get path coordinates, grab corresponding Street View images!
                 road_lat, road_lon = coord
                 path = walk_algorithm(road_lat, road_lon, NUM_STEPS)
-                get_bidirectional_path_images(path, true_count)
+                get_bidirectional_path_images(path, 0) # TODO: Put a reference counter here...
 
 def google_check_over_water(lat, lon):
 	query = 'http://maps.googleapis.com/maps/api/staticmap?center=' + \
@@ -235,6 +232,7 @@ def google_snap_to_nearest_road_batch(latlon_list):
         response_list = [None] * len(latlon_list) # Initialize output list...
         for r in response['snappedPoints']:
         	response_list[r['originalIndex']] = (r['location']['latitude'], r['location']['longitude'])
+
 	return response_list
 
 def coordinate_distance(lat1, lon1, lat2, lon2):
