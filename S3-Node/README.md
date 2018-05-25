@@ -85,9 +85,9 @@ You can obtain the JSON for your city of interest like so:
 curl -o <OUTPUT_PATH> "https://nominatim.openstreetmap.org/search/<REGION OF INTEREST>/?format=json&addressdetails=1&polygon_geojson=1" 
 ```
 
-Your file is likely to contain multiple entries, so to find which one is right, I suggest going to https://www.openstreetmap.org/search?query=<REGION OF INTEREST>
+Your file will contain an array with multiple such entries, so to find which one is right, I suggest going to https://www.openstreetmap.org/search?query=REGION_OF_INTEREST_HERE
 and looking at the different results. The order corresponds with that of the JSON file, so identify the index of the right one and extract the right entry from the 
-json file (start counting from zero).
+json file (start counting from zero). Acceptable geojson types are "Polygon" and "Multipolygon", not "Point".
 
 5. Run the <i>run_s3.js</i> script to start data collection.
 ```
