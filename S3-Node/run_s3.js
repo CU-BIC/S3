@@ -7,7 +7,7 @@ const resolve = require('path').resolve;
 const args = parser.parseArgs();
 
 // Open the file with the OSM JSON corresponding to the region (for now, assume the first object is the city)
-const region = JSON.parse(readFileSync(resolve(args.region)))[0];
+const region = JSON.parse(readFileSync(resolve(args.region)))[args.index];
 
 // Create a Google Car
 const car = new GoogleCar({
@@ -15,9 +15,9 @@ const car = new GoogleCar({
   apiKeys: require(resolve(args.keys)).apiKeys,
   stopDistance: args.resolution,
   verbose: true,
-  headings: 4, // 1, 2 or 4
+  headings: args.headings,
   settings: {
-    mode: 'images', // 'images' for image download, or 'panorama' just to obtain the panoramas (and lat/lng) to download...
+    mode: args.mode, 
     filesPrefix: args.file_prefix,
     destination: args.destination,
     width: 640,

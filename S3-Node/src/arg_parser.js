@@ -45,16 +45,16 @@ parser.addArgument(
   }
 );
 
-/*
+
 parser.addArgument(
-  ['-v', '--verbose'],
+  ['-i', '--index'],
   {
-    help: 'Whether car coordinates and other information should be printed to the console.',
-    defaultValue: false,
+    help: 'The index of the entry of interest in the OpenStreetMaps document.',
+    defaultValue: 0,
     required: false,
   }
 );
-*/
+
 
 parser.addArgument(
   ['-d', '--destination'],
@@ -66,6 +66,15 @@ parser.addArgument(
   }
 );
 
+parser.addArgument(
+  ['-m', '--mode'],
+  {
+    help: 'Collection mode (i for panoramas and images, p for panoramas only)',
+    type: 'string',
+    required: false,
+    defaultValue: 'i'
+  }
+);
 
 parser.addArgument(
   ['-k', '--keys'],

@@ -79,11 +79,9 @@ async function fetchImages({ coordinates, settings, apiKey, heading }) {
   const { width, height, pitch, fov, destination, filesPrefix } = settings; //TODO allow for multiple headings
 
   const query = `https://maps.googleapis.com/maps/api/streetview?size=${width}x${height}&location=${coordinates.asString()}&fov=${fov}&heading=${heading}&pitch=${pitch}&key=${apiKey}`;
-
   const requestParams = {
     responseType:'stream',
   };
-
   try {
     const response = await axios.get(query, requestParams);
     response.data.pipe(fs.createWriteStream(`${destination}/images/${filesPrefix}_${coordinates.getLat()}_${coordinates.getLng()}_${heading}.jpg`));

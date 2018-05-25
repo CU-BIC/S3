@@ -167,7 +167,6 @@ class GoogleCar {
     this.createApiLog();
     this.saveJsonLog();
     this.createFile('success');
-    process.exit(0);
   }
 
   async crash() {
@@ -224,7 +223,11 @@ class GoogleCar {
   }
 
   async _downloadImages() {
-    const panoramas = this.getPanoramas();
+	  const panoramas = JSON.parse(fs.readFileSync(path.resolve(this.getSettings().destination, 'output.json'), 'utf-8'))
+	  			.filter(coord => coord.panorama)
+        .map(coord => coord.panorama);
+        
+
     for(let i = 0; i < panoramas.length; i++) {
       const coord = JSON.parse(JSON.stringify(panoramas[i].location.latLng));
 
@@ -280,9 +283,10 @@ class GoogleCar {
         await this.getUnprocessedBatch().snapCoordinates({ apiKey: this.getCurrentApiKey() });
         await this.getUnprocessedBatch().fetchPanoramas({ panoramaFetchFunction: this.fetchPanoramaFunction,
                                                           radius: 50 }); // TODO change this ugly parameter
-        // TODO download the images
+	      
+	
         this.storeProcessedBatch();
-        this.log(`Completed (approx.): ${this.getProcessedBatch().getBatchSize()/this._region.getTotalNumPoints(this._stopDistance)}%...`);
+	      //this.log(`Completed (approx.): ${this.getProcessedBatch().getBatchSize()/this._region.getTotalNumPoints(this._stopDistance)}%...`);
       } catch (err) {
         if (err.code === 'API_LIMIT') {
           await this.changeApiKey();
@@ -293,7 +297,16 @@ class GoogleCar {
       }
     }
 
-    await this.stopDriving();
+	  await this.stopDriving();
+      this.log(`Done collecting panoramas.`);
+
+	// Download the images
+	  if (this.getSettings().mode === 'images') {
+		  this.log(`Collecting images.`);
+		  await this._downloadImages();
+	      }
+
+    process.exit(0);
     return;
   }
 
