@@ -92,9 +92,9 @@ json file (start counting from zero). Acceptable geojson types are "Polygon" and
 5. Run the <i>run_s3.js</i> script to start data collection.
 ```
 node run_s3.js -r <path to the GeoJSON file> \
--e <sampling resolution> \
--f <file prefix> \
--n <number of headings> \
+-e <sampling resolution (every how many meters)> \
+-f <file prefix (usually region name)> \
+-n <number of headings (how many pictures per location: 1, 2 or 4 headings)> \
 -d <path to destination folder> \
 -k <path to json file with API key(s)> \
 -i <index of correct entry in json file>
